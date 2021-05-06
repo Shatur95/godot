@@ -35,9 +35,7 @@
 #ifndef SCENE_DIFF_H
 #define SCENE_DIFF_H
 
-#include "core/object/object.h"
-#include "core/templates/local_vector.h"
-#include "core/templates/oa_hash_map.h"
+#include "core/object/class_db.h"
 #include "net_utilities.h"
 
 class SceneSynchronizer;
@@ -62,7 +60,7 @@ class SceneDiff : public Object {
 	LocalVector<LocalVector<VarDiff>> diff;
 
 public:
-	SceneDiff();
+	SceneDiff() = default;
 
 	void start_tracking_scene_changes(const LocalVector<NetUtility::NodeData *> &p_nodes);
 	void stop_tracking_scene_changes(const SceneSynchronizer *p_synchronizer);

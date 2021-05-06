@@ -126,9 +126,6 @@ void DataBuffer::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("dry"), &DataBuffer::dry);
 }
 
-DataBuffer::DataBuffer() :
-		Object() {}
-
 DataBuffer::DataBuffer(const DataBuffer &p_other) :
 		Object(),
 		metadata_size(p_other.metadata_size),
@@ -139,8 +136,6 @@ DataBuffer::DataBuffer(const DataBuffer &p_other) :
 
 DataBuffer::DataBuffer(const BitArray &p_buffer) :
 		Object(),
-		metadata_size(0),
-		bit_offset(0),
 		bit_size(p_buffer.size_in_bits()),
 		is_reading(true),
 		buffer(p_buffer) {}
@@ -540,7 +535,7 @@ Vector3 DataBuffer::read_normalized_vector3(CompressionLevel p_compression_level
 	return Vector3(decompressed_x_axis, decompressed_y_axis, decompressed_z_axis);
 }
 
-Variant DataBuffer::add_variant(Variant p_input) {
+Variant DataBuffer::add_variant(const Variant &p_input) {
 	// TODO consider to use a method similar to `_encode_and_compress_variant`
 	// to compress the encoded data a bit.
 

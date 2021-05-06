@@ -34,8 +34,6 @@
 
 #include "scene/main/node.h"
 
-#include "core/math/transform.h"
-#include "core/string/node_path.h"
 #include "data_buffer.h"
 #include "interpolator.h"
 #include "net_utilities.h"
@@ -336,14 +334,14 @@ public:
 	bool has_scene_synchronizer() const;
 
 	/* On server rpc functions. */
-	void _rpc_server_send_inputs(Vector<uint8_t> p_data);
+	void _rpc_server_send_inputs(const Vector<uint8_t> &p_data);
 
 	/* On client rpc functions. */
-	void _rpc_send_tick_additional_speed(Vector<uint8_t> p_data);
+	void _rpc_send_tick_additional_speed(const Vector<uint8_t> &p_data);
 
 	/* On puppet rpc functions. */
 	void _rpc_doll_notify_sync_pause(uint32_t p_epoch);
-	void _rpc_doll_send_epoch_batch(Vector<uint8_t> p_data);
+	void _rpc_doll_send_epoch_batch(const Vector<uint8_t> &p_data);
 
 	void process(real_t p_delta);
 
@@ -373,7 +371,7 @@ struct Controller {
 	Controller(NetworkedController *p_node) :
 			node(p_node) {}
 
-	virtual ~Controller() {}
+	virtual ~Controller() = default;
 
 	virtual void ready() {}
 	virtual uint32_t get_current_input_id() const = 0;
@@ -431,7 +429,7 @@ struct ServerController : public Controller {
 	virtual void activate_peer(int p_peer) override;
 	virtual void deactivate_peer(int p_peer) override;
 
-	void receive_inputs(Vector<uint8_t> p_data);
+	void receive_inputs(const Vector<uint8_t> &p_data);
 	int get_inputs_count() const;
 
 	/// Fetch the next inputs, returns true if the input is new.
@@ -514,17 +512,16 @@ struct DollController : public Controller {
 	NetUtility::StatisticalRingBuffer<uint32_t> network_watcher;
 
 	DollController(NetworkedController *p_node);
-	~DollController();
 
 	virtual void ready() override;
 	void process(real_t p_delta);
 	// TODO consider make this non virtual
 	virtual uint32_t get_current_input_id() const override;
 
-	void receive_batch(Vector<uint8_t> p_data);
-	uint32_t receive_epoch(Vector<uint8_t> p_data);
+	void receive_batch(const Vector<uint8_t> &p_data);
+	uint32_t receive_epoch(const Vector<uint8_t> &p_data);
 
-	uint32_t next_epoch(real_t p_delta);
+	uint32_t next_epoch();
 	void pause(uint32_t p_epoch);
 };
 

@@ -35,12 +35,9 @@
 #ifndef NET_UTILITIES_H
 #define NET_UTILITIES_H
 
-#include "core/math/math_defs.h"
 #include "core/math/math_funcs.h"
-#include "core/object/reference.h"
 #include "core/templates/local_vector.h"
-#include "core/templates/oa_hash_map.h"
-#include "core/typedefs.h"
+#include "core/variant/variant.h"
 
 #ifdef DEBUG_ENABLED
 #define NET_DEBUG_PRINT(msg) \
@@ -199,7 +196,8 @@ T StatisticalRingBuffer<T>::average() const {
 	}
 	a = a / T(data.size());
 	T b = avg_sum / T(data.size());
-	ERR_FAIL_COND_V_MSG(ABS(a - b) > (CMP_EPSILON * 4.0), b, "The `avg_sum` accumulated a sensible precision loss: " + rtos(ABS(a - b)));
+	const T difference = a > b ? a - b : b - a;
+	ERR_FAIL_COND_V_MSG(difference > (CMP_EPSILON * 4.0), b, "The `avg_sum` accumulated a sensible precision loss: " + rtos(difference));
 	return b;
 #else
 	// Divide it by the buffer size is wrong when the buffer is not yet fully
@@ -278,9 +276,9 @@ struct VarData {
 	bool enabled = false;
 	Vector<uint32_t> change_listeners;
 
-	VarData();
-	VarData(StringName p_name);
-	VarData(NetVarId p_id, StringName p_name, Variant p_val, bool p_skip_rewinding, bool p_enabled);
+	VarData() = default;
+	VarData(const StringName &p_name);
+	VarData(NetVarId p_id, const StringName &p_name, const Variant &p_val, bool p_skip_rewinding, bool p_enabled);
 
 	bool operator==(const VarData &p_other) const;
 	bool operator<(const VarData &p_other) const;
@@ -309,7 +307,7 @@ struct NodeData {
 	// This is valid to use only inside the process function.
 	Node *node = nullptr;
 
-	NodeData();
+	NodeData() = default;
 
 	void process(const real_t p_delta) const;
 };

@@ -33,7 +33,6 @@
 */
 
 #include "core/object/class_db.h"
-#include "core/object/object.h"
 
 #include "bit_array.h"
 
@@ -164,7 +163,7 @@ private:
 public:
 	static void _bind_methods();
 
-	DataBuffer();
+	DataBuffer() = default;
 	DataBuffer(const DataBuffer &p_other);
 	DataBuffer(const BitArray &p_buffer);
 
@@ -318,7 +317,7 @@ public:
 	Vector3 read_normalized_vector3(CompressionLevel p_compression_level);
 
 	/// Add a variant. This is the only supported dynamic sized value.
-	Variant add_variant(Variant p_input);
+	Variant add_variant(const Variant &p_input);
 
 	/// Parse the next data as Variant and returns it.
 	Variant read_variant();

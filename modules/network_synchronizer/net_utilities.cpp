@@ -34,20 +34,17 @@
 
 #include "net_utilities.h"
 
-#include "core/variant/variant.h"
 #include "scene/main/node.h"
 
 bool NetUtility::ChangeListener::operator==(const ChangeListener &p_other) const {
 	return object_id == p_other.object_id && method == p_other.method;
 }
 
-NetUtility::VarData::VarData() {}
-
-NetUtility::VarData::VarData(StringName p_name) {
+NetUtility::VarData::VarData(const StringName &p_name) {
 	var.name = p_name;
 }
 
-NetUtility::VarData::VarData(NetVarId p_id, StringName p_name, Variant p_val, bool p_skip_rewinding, bool p_enabled) :
+NetUtility::VarData::VarData(NetVarId p_id, const StringName &p_name, const Variant &p_val, bool p_skip_rewinding, bool p_enabled) :
 		id(p_id),
 		skip_rewinding(p_skip_rewinding),
 		enabled(p_enabled) {
@@ -62,8 +59,6 @@ bool NetUtility::VarData::operator==(const NetUtility::VarData &p_other) const {
 bool NetUtility::VarData::operator<(const VarData &p_other) const {
 	return id < p_other.id;
 }
-
-NetUtility::NodeData::NodeData() {}
 
 void NetUtility::NodeData::process(const real_t p_delta) const {
 	const Variant var_delta = p_delta;

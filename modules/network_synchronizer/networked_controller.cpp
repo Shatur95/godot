@@ -36,9 +36,7 @@
 
 #include "core/config/engine.h"
 #include "core/io/marshalls.h"
-#include "core/os/os.h"
 #include "scene_synchronizer.h"
-#include <stdint.h>
 #include <algorithm>
 
 #define METADATA_SIZE 1
@@ -447,12 +445,12 @@ bool NetworkedController::has_scene_synchronizer() const {
 	return scene_synchronizer;
 }
 
-void NetworkedController::_rpc_server_send_inputs(Vector<uint8_t> p_data) {
+void NetworkedController::_rpc_server_send_inputs(const Vector<uint8_t> &p_data) {
 	ERR_FAIL_COND(is_server_controller() == false);
 	static_cast<ServerController *>(controller)->receive_inputs(p_data);
 }
 
-void NetworkedController::_rpc_send_tick_additional_speed(Vector<uint8_t> p_data) {
+void NetworkedController::_rpc_send_tick_additional_speed(const Vector<uint8_t> &p_data) {
 	ERR_FAIL_COND(is_player_controller() == false);
 	ERR_FAIL_COND(p_data.size() != 1);
 
@@ -469,7 +467,7 @@ void NetworkedController::_rpc_doll_notify_sync_pause(uint32_t p_epoch) {
 	static_cast<DollController *>(controller)->pause(p_epoch);
 }
 
-void NetworkedController::_rpc_doll_send_epoch_batch(Vector<uint8_t> p_data) {
+void NetworkedController::_rpc_doll_send_epoch_batch(const Vector<uint8_t> &p_data) {
 	ERR_FAIL_COND_MSG(is_doll_controller() == false, "Only dolls are supposed to receive this function call.");
 	ERR_FAIL_COND_MSG(p_data.size() <= 0, "It's not supposed to receive a 0 size data.");
 
@@ -494,8 +492,9 @@ void NetworkedController::__on_sync_paused() {
 void NetworkedController::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_INTERNAL_PHYSICS_PROCESS: {
-			if (Engine::get_singleton()->is_editor_hint())
+			if (Engine::get_singleton()->is_editor_hint()) {
 				return;
+			}
 
 #ifdef DEBUG_ENABLED
 			// This can't happen, since only the doll are processed here.
@@ -506,8 +505,9 @@ void NetworkedController::_notification(int p_what) {
 		} break;
 #ifdef DEBUG_ENABLED
 		case NOTIFICATION_READY: {
-			if (Engine::get_singleton()->is_editor_hint())
+			if (Engine::get_singleton()->is_editor_hint()) {
 				return;
+			}
 
 			ERR_FAIL_COND_MSG(has_method("collect_inputs") == false, "In your script you must inherit the virtual method `collect_inputs` to correctly use the `NetworkedController`.");
 			ERR_FAIL_COND_MSG(has_method("controller_process") == false, "In your script you must inherit the virtual method `controller_process` to correctly use the `NetworkedController`.");
@@ -626,7 +626,7 @@ void ServerController::deactivate_peer(int p_peer) {
 	}
 }
 
-void ServerController::receive_inputs(Vector<uint8_t> p_data) {
+void ServerController::receive_inputs(const Vector<uint8_t> &p_data) {
 	// The packet is composed as follow:
 	// |- The following four bytes for the first input ID.
 	// \- Array of inputs:
@@ -636,8 +636,8 @@ void ServerController::receive_inputs(Vector<uint8_t> p_data) {
 	// Let's decode it!
 
 	const uint32_t now = OS::get_singleton()->get_ticks_msec();
-	// If negative the timer was disabled, so just assume 0.
-	network_watcher.push(MAX(0, now - input_arrival_time));
+	// If now is bigger, then the timer has been disabled, so we assume 0.
+	network_watcher.push(now > input_arrival_time ? now - input_arrival_time : 0);
 	input_arrival_time = now;
 
 	const int data_len = p_data.size();
@@ -1356,9 +1356,6 @@ DollController::DollController(NetworkedController *p_node) :
 		network_watcher(node->get_doll_connection_stats_frame_span(), 0) {
 }
 
-DollController::~DollController() {
-}
-
 void DollController::ready() {
 	interpolator.reset();
 	node->call(
@@ -1368,7 +1365,7 @@ void DollController::ready() {
 }
 
 void DollController::process(real_t p_delta) {
-	const uint32_t frame_epoch = next_epoch(p_delta);
+	const uint32_t frame_epoch = next_epoch();
 
 	if (unlikely(frame_epoch == UINT32_MAX)) {
 		// Nothing to do.
@@ -1386,7 +1383,7 @@ uint32_t DollController::get_current_input_id() const {
 	return current_epoch;
 }
 
-void DollController::receive_batch(Vector<uint8_t> p_data) {
+void DollController::receive_batch(const Vector<uint8_t> &p_data) {
 	if (unlikely(node->get_scene_synchronizer()->is_enabled() == false)) {
 		// The sync is disabled, nothing to do.
 		return;
@@ -1436,8 +1433,8 @@ void DollController::receive_batch(Vector<uint8_t> p_data) {
 	// Establish the connection quality by checking if the batch takes
 	// always the same time to arrive.
 	const uint32_t now = OS::get_singleton()->get_ticks_msec();
-	// If negative the timer was disabled, so just assume 0.
-	network_watcher.push(MAX(0, now - batch_receiver_timer));
+	// If now is bigger, then the timer has been disabled, so we assume 0.
+	network_watcher.push(now > batch_receiver_timer ? now - batch_receiver_timer : 0);
 	batch_receiver_timer = now;
 
 	const uint32_t avg_receive_time = network_watcher.average();
@@ -1470,7 +1467,7 @@ void DollController::receive_batch(Vector<uint8_t> p_data) {
 #endif
 }
 
-uint32_t DollController::receive_epoch(Vector<uint8_t> p_data) {
+uint32_t DollController::receive_epoch(const Vector<uint8_t> &p_data) {
 	DataBuffer buffer(p_data);
 	buffer.begin_read();
 	const uint32_t epoch = buffer.read_int(DataBuffer::COMPRESSION_LEVEL_1);
@@ -1488,7 +1485,7 @@ uint32_t DollController::receive_epoch(Vector<uint8_t> p_data) {
 	return epoch;
 }
 
-uint32_t DollController::next_epoch(real_t p_delta) {
+uint32_t DollController::next_epoch() {
 	// TODO re-describe.
 	// This function regulates the epoch ID to process.
 	// The epoch is not simply increased by one because we need to make sure
