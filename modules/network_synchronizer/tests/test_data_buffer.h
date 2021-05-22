@@ -95,10 +95,10 @@ TEST_CASE("[Modules][DataBuffer] Bool") {
 	bool value = {};
 
 	SUBCASE("[Modules][DataBuffer] false") {
-		value = true;
+		value = false;
 	}
 	SUBCASE("[Modules][DataBuffer] true") {
-		value = false;
+		value = true;
 	}
 
 	DataBuffer buffer;
@@ -412,6 +412,124 @@ TEST_CASE("[Modules][DataBuffer] Normalized Vector3") {
 		CHECK_MESSAGE(read_value.y == doctest::Approx(value.y).epsilon(epsilon), "Read Vector3 should have the same y axis");
 		CHECK_MESSAGE(read_value.z == doctest::Approx(value.z).epsilon(epsilon), "Read Vector3 should have the same z axis");
 	}
+}
+
+TEST_CASE("[Modules][DataBuffer] Variant") {
+	Variant value = {};
+
+	SUBCASE("[Modules][DataBuffer] Valid value") {
+		value = "VariantString";
+	}
+	SUBCASE("[Modules][DataBuffer] Invalid value") {
+		value = {};
+	}
+
+	DataBuffer buffer;
+	buffer.begin_write(0);
+	CHECK_MESSAGE(buffer.add_variant(value) == value, "Should return the same value");
+	buffer.begin_read();
+	CHECK_MESSAGE(buffer.read_variant() == value, "Should read the same value");
+}
+
+TEST_CASE("[Modules][DataBuffer] Seek") {
+	DataBuffer buffer;
+	buffer.begin_write(0);
+	buffer.add_bool(true);
+	buffer.add_bool(false);
+	buffer.begin_read();
+
+	ERR_PRINT_OFF
+	buffer.seek(-1);
+	CHECK_MESSAGE(buffer.get_bit_offset() == 0, "Bit offset should fail for negative values");
+	ERR_PRINT_ON
+
+	buffer.seek(1);
+	CHECK_MESSAGE(buffer.get_bit_offset() == 1, "Bit offset should be 1 after seek to 1");
+	CHECK_MESSAGE(buffer.read_bool() == false, "Should read false at position 1");
+
+	buffer.seek(0);
+	CHECK_MESSAGE(buffer.get_bit_offset() == 0, "Bit offset should be 0 after seek to 0");
+	CHECK_MESSAGE(buffer.read_bool() == true, "Should read true at position 0");
+}
+
+TEST_CASE("[Modules][DataBuffer] Metadata") {
+	bool value = {};
+	bool metadata = {};
+
+	SUBCASE("[Modules][DataBuffer] True") {
+		metadata = true;
+		value = false;
+	}
+
+	SUBCASE("[Modules][DataBuffer] False") {
+		metadata = false;
+		value = true;
+	}
+
+	const int metadata_size = DataBuffer::get_bit_taken(DataBuffer::DATA_TYPE_BOOL, DataBuffer::COMPRESSION_LEVEL_0);
+	DataBuffer buffer;
+	buffer.begin_write(metadata_size);
+	buffer.add_bool(metadata);
+	buffer.add_bool(value);
+	buffer.begin_read();
+	CHECK_MESSAGE(buffer.read_bool() == metadata, "Should return correct metadata");
+	CHECK_MESSAGE(buffer.read_bool() == value, "Should return correct value after metadata");
+	CHECK_MESSAGE(buffer.get_metadata_size() == metadata_size, "Metadata size should be equal to expected");
+	CHECK_MESSAGE(buffer.size() == DataBuffer::get_bit_taken(DataBuffer::DATA_TYPE_BOOL, DataBuffer::COMPRESSION_LEVEL_0), "Size should be equal to expected");
+	CHECK_MESSAGE(buffer.total_size() == DataBuffer::get_bit_taken(DataBuffer::DATA_TYPE_BOOL, DataBuffer::COMPRESSION_LEVEL_0) + metadata_size, "Total size should be equal to expected");
+}
+
+TEST_CASE("[Modules][DataBuffer] Zero") {
+	constexpr DataBuffer::CompressionLevel compression = DataBuffer::COMPRESSION_LEVEL_0;
+	DataBuffer buffer;
+	buffer.begin_write(0);
+	buffer.add_int(-1, compression);
+	buffer.zero();
+	buffer.begin_read();
+	CHECK_MESSAGE(buffer.read_int(compression) == 0, "Should return 0");
+}
+
+TEST_CASE("[Modules][DataBuffer] Shrinking") {
+	DataBuffer buffer;
+	buffer.begin_write(0);
+	for (int i = 0; i < 2; ++i) {
+		buffer.add_real(3.14, DataBuffer::COMPRESSION_LEVEL_0);
+	}
+	const int original_size = buffer.total_size();
+
+	ERR_PRINT_OFF;
+	buffer.shrink_to(0, original_size + 1);
+	ERR_PRINT_ON;
+	CHECK_MESSAGE(buffer.total_size() == original_size, "Shrinking to a larger size should fail.");
+
+	ERR_PRINT_OFF;
+	buffer.shrink_to(-1, original_size);
+	ERR_PRINT_ON;
+	CHECK_MESSAGE(buffer.total_size() == original_size, "Shrinking with a negative metadata size should fail.");
+
+	ERR_PRINT_OFF;
+	buffer.shrink_to(0, -1);
+	ERR_PRINT_ON;
+	CHECK_MESSAGE(buffer.total_size() == original_size, "Shrinking with a negative bits size should fail.");
+
+	buffer.shrink_to(0, original_size - 8);
+	CHECK_MESSAGE(buffer.total_size() == original_size - 8, "Shrinking by 1 byte should succeed.");
+	CHECK_MESSAGE(buffer.get_buffer().size_in_bits() == original_size, "Buffer size after shrinking by 1 byte should be the same.");
+
+	buffer.dry();
+	CHECK_MESSAGE(buffer.get_buffer().size_in_bits() == original_size - 8, "Buffer size after dry should changed to the smallest posiible.");
+}
+
+TEST_CASE("[Modules][DataBuffer] Skip") {
+	const bool value = true;
+
+	DataBuffer buffer;
+	buffer.add_bool(!value);
+	buffer.add_bool(value);
+
+	buffer.begin_read();
+	buffer.seek(DataBuffer::get_bit_taken(DataBuffer::DATA_TYPE_BOOL, DataBuffer::COMPRESSION_LEVEL_0));
+	CHECK_MESSAGE(buffer.read_bool() == value, "Should read the same value");
 }
 } // namespace TestDataBuffer
 

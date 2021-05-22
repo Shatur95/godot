@@ -39,19 +39,19 @@
 // TODO improve the allocation mechanism.
 
 void DataBuffer::_bind_methods() {
-	BIND_CONSTANT(DATA_TYPE_BOOL);
-	BIND_CONSTANT(DATA_TYPE_INT);
-	BIND_CONSTANT(DATA_TYPE_REAL);
-	BIND_CONSTANT(DATA_TYPE_UNIT_REAL);
-	BIND_CONSTANT(DATA_TYPE_VECTOR2);
-	BIND_CONSTANT(DATA_TYPE_NORMALIZED_VECTOR2);
-	BIND_CONSTANT(DATA_TYPE_VECTOR3);
-	BIND_CONSTANT(DATA_TYPE_NORMALIZED_VECTOR3);
+	BIND_ENUM_CONSTANT(DATA_TYPE_BOOL);
+	BIND_ENUM_CONSTANT(DATA_TYPE_INT);
+	BIND_ENUM_CONSTANT(DATA_TYPE_REAL);
+	BIND_ENUM_CONSTANT(DATA_TYPE_UNIT_REAL);
+	BIND_ENUM_CONSTANT(DATA_TYPE_VECTOR2);
+	BIND_ENUM_CONSTANT(DATA_TYPE_NORMALIZED_VECTOR2);
+	BIND_ENUM_CONSTANT(DATA_TYPE_VECTOR3);
+	BIND_ENUM_CONSTANT(DATA_TYPE_NORMALIZED_VECTOR3);
 
-	BIND_CONSTANT(COMPRESSION_LEVEL_0);
-	BIND_CONSTANT(COMPRESSION_LEVEL_1);
-	BIND_CONSTANT(COMPRESSION_LEVEL_2);
-	BIND_CONSTANT(COMPRESSION_LEVEL_3);
+	BIND_ENUM_CONSTANT(COMPRESSION_LEVEL_0);
+	BIND_ENUM_CONSTANT(COMPRESSION_LEVEL_1);
+	BIND_ENUM_CONSTANT(COMPRESSION_LEVEL_2);
+	BIND_ENUM_CONSTANT(COMPRESSION_LEVEL_3);
 
 	ClassDB::bind_method(D_METHOD("size"), &DataBuffer::size);
 
@@ -135,11 +135,13 @@ void DataBuffer::dry() {
 }
 
 void DataBuffer::seek(int p_bits) {
-	ERR_FAIL_COND((metadata_size + bit_size) < p_bits);
+	ERR_FAIL_INDEX(p_bits, metadata_size + bit_size);
 	bit_offset = p_bits;
 }
 
-void DataBuffer::force_set_size(int p_metadata_bit_size, int p_bit_size) {
+void DataBuffer::shrink_to(int p_metadata_bit_size, int p_bit_size) {
+	ERR_FAIL_COND_MSG(p_metadata_bit_size < 0, "Metadata size can't be negative");
+	ERR_FAIL_COND_MSG(p_bit_size < 0, "Bit size can't be negative");
 	ERR_FAIL_COND_MSG(buffer.size_in_bits() < (p_metadata_bit_size + p_bit_size), "The buffer is smaller than the new given size.");
 	metadata_size = p_metadata_bit_size;
 	bit_size = p_bit_size;
@@ -282,7 +284,7 @@ double DataBuffer::add_real(double p_input, CompressionLevel p_compression_level
 		exponent = 0;
 		mantissa_scale /= 2.0;
 	}
-	mantissa = round(mantissa * mantissa_scale) / mantissa_scale; // Round to specified number of bits. Math::round currently have an overflow with max double.
+	mantissa = Math::round(mantissa * mantissa_scale) / mantissa_scale; // Round to specified number of bits.
 	if (mantissa < 0.5 && mantissa != 0) {
 		// Check underflow, extract exponent from mantissa.
 		exponent += ilogb(mantissa) + 1;
